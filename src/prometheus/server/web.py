@@ -24,11 +24,13 @@ if TYPE_CHECKING:
 
 
 class WebhookHandler(tornado.web.RequestHandler):
-    application: Application
+    # Note: tornado's RequestHandler already uses `self.application` for the
+    # tornado web app. We deliberately use a different name here.
+    bot_app: Application
     expected_secret: str
 
-    def initialize(self, *, application: Application, expected_secret: str) -> None:
-        self.application = application
+    def initialize(self, *, bot_app: Application, expected_secret: str) -> None:
+        self.bot_app = bot_app
         self.expected_secret = expected_secret
 
     async def post(self) -> None:
@@ -43,8 +45,8 @@ class WebhookHandler(tornado.web.RequestHandler):
             log.warning("webhook.bad_json")
             self.set_status(400)
             return
-        upd = Update.de_json(payload, self.application.bot)
-        await self.application.update_queue.put(upd)
+        upd = Update.de_json(payload, self.bot_app.bot)
+        await self.bot_app.update_queue.put(upd)
         self.set_status(200)
         self.write({"ok": True})
 
@@ -96,7 +98,7 @@ def build_web_app(
                 webhook_path,
                 WebhookHandler,
                 {
-                    "application": application,
+                    "bot_app": application,
                     "expected_secret": webhook_secret,
                 },
             ),
