@@ -34,6 +34,6 @@ services:
 
 databases:
   - name: prometheus-db
-    plan: starter
+    plan: basic-256mb
     region: singapore
     postgresMajorVersion: "16"
