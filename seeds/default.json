@@ -1,0 +1,20 @@
+[
+  {
+    "title": "Check LinkedIn perf",
+    "schedule_type": "recurring",
+    "recurrence_rule": "weekdays",
+    "fire_time": "09:30"
+  },
+  {
+    "title": "Daily standup",
+    "schedule_type": "recurring",
+    "recurrence_rule": "weekdays",
+    "fire_time": "10:00"
+  },
+  {
+    "title": "Wind down",
+    "schedule_type": "recurring",
+    "recurrence_rule": "daily",
+    "fire_time": "23:00"
+  }
+]
