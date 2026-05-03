@@ -77,13 +77,17 @@ def _run_polling() -> None:
 async def _amain_prod() -> None:
     log.info("boot", env=settings.env, mode="webhook")
 
-    if not settings.webhook_url:
-        log.error("webhook_url_required_in_prod")
+    base_url = settings.effective_webhook_url
+    if not base_url:
+        log.error(
+            "webhook_url_required_in_prod",
+            hint="Set WEBHOOK_URL or rely on RENDER_EXTERNAL_URL (auto on Render).",
+        )
         raise SystemExit(1)
 
     secret_path = settings.webhook_secret or "default"
     webhook_route = f"/webhook/{secret_path}"
-    full_webhook_url = settings.webhook_url.rstrip("/") + webhook_route
+    full_webhook_url = base_url.rstrip("/") + webhook_route
 
     app = (
         ApplicationBuilder()

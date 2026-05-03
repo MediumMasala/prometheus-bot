@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     webhook_url: str = ""
     webhook_secret: str = ""
     port: int = 8080
+    # Render auto-injects RENDER_EXTERNAL_URL on web services. We fall back to
+    # this so first deploy works without a manual WEBHOOK_URL set.
+    render_external_url: str = ""
 
     env: Literal["dev", "prod"] = "dev"
     log_level: str = "INFO"
@@ -45,6 +48,11 @@ class Settings(BaseSettings):
     @property
     def is_prod(self) -> bool:
         return self.env == "prod"
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def effective_webhook_url(self) -> str:
+        return self.webhook_url or self.render_external_url
 
     @computed_field  # type: ignore[prop-decorator]
     @property

@@ -15,8 +15,10 @@ services:
         sync: false
       - key: OWNER_TELEGRAM_USER_ID
         sync: false
+      # WEBHOOK_URL is optional — if unset, the app falls back to Render's
+      # auto-injected RENDER_EXTERNAL_URL. Set this only to override.
       - key: WEBHOOK_URL
-        sync: false  # set to https://<service>.onrender.com after first deploy
+        sync: false
       - key: WEBHOOK_SECRET
         generateValue: true
       - key: GEMINI_MODEL
