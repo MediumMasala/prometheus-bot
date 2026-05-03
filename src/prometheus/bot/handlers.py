@@ -82,7 +82,7 @@ from prometheus.scheduler.manager import (
     remove_reminder_job,
 )
 from prometheus.utils.logging import log
-from prometheus.utils.time import fmt_ist
+from prometheus.utils.time import fmt_ist, now_utc, shift_past_to_future
 
 # ============ commands ============
 
@@ -492,6 +492,8 @@ async def _capture_resched(update, context, reminder_id: int, text: str) -> None
 async def _try_parse_and_confirm(
     update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, *, force_create: bool
 ) -> None:
+    from datetime import timedelta
+
     parsed_p = await parse_reminder(text)
     if parsed_p is None:
         await update.message.reply_text(PARSE_FAILED)
@@ -505,17 +507,27 @@ async def _try_parse_and_confirm(
 
     db_kwargs = to_db_fields(parsed_p)
 
+    # Auto-shift past one-offs (yesterday/last hour) to the next future
+    # occurrence at the same wall-clock time.
+    shifted_note = ""
+    one_off = db_kwargs.get("one_off_datetime")
+    if one_off and one_off < now_utc() - timedelta(minutes=5):
+        new_dt = shift_past_to_future(one_off)
+        db_kwargs["one_off_datetime"] = new_dt
+        shifted_note = (
+            f"\n(That time was past — moved to {fmt_ist(new_dt, with_date=True)}.)"
+        )
+
     if parsed_p.confidence < 0.7 and force_create:
         # commit best guess + warn
-        await _create_and_arm(update, db_kwargs, low_conf=True)
+        await _create_and_arm(update, db_kwargs, low_conf=True, extra_note=shifted_note)
         return
 
-    # Confidence ≥ 0.7: confirmation flow
     summary = _format_parse_summary(parsed_p, db_kwargs)
     context.chat_data["pending_parse"] = db_kwargs  # type: ignore[index]
 
     await update.message.reply_text(
-        f"{PARSE_CONFIRM_HEADER}\n{summary}",
+        f"{PARSE_CONFIRM_HEADER}\n{summary}{shifted_note}",
         reply_markup=parse_confirm_keyboard("current"),
     )
 
@@ -535,7 +547,11 @@ def _format_parse_summary(parsed, db_kwargs: dict) -> str:
 
 
 async def _create_and_arm(
-    update: Update, db_kwargs: dict, *, low_conf: bool = False
+    update: Update,
+    db_kwargs: dict,
+    *,
+    low_conf: bool = False,
+    extra_note: str = "",
 ) -> None:
     async with session_scope() as session:
         user = await get_user_by_telegram_id(session, update.effective_user.id)
@@ -569,6 +585,8 @@ async def _create_and_arm(
 
         if low_conf:
             msg = f"{msg}\n{PARSE_LOW_CONFIDENCE_FORCED}"
+        if extra_note:
+            msg = f"{msg}{extra_note}"
 
         await add_chat_message(session, user.id, ChatRole.assistant, msg)
 

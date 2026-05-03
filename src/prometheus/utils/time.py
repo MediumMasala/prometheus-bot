@@ -121,3 +121,19 @@ def ist_today() -> date:
 
 def ist_yesterday() -> date:
     return (now_ist() - timedelta(days=1)).date()
+
+
+def shift_past_to_future(dt: datetime, now: datetime | None = None) -> datetime:
+    """If dt is in the past, slide it forward to the next future occurrence at
+    the same IST wall-clock time (today if not yet past, else tomorrow)."""
+    n = now or now_utc()
+    if dt > n:
+        return dt
+    dt_ist = to_ist(dt)
+    n_ist = to_ist(n)
+    candidate = n_ist.replace(
+        hour=dt_ist.hour, minute=dt_ist.minute, second=0, microsecond=0
+    )
+    if candidate <= n_ist:
+        candidate = candidate + timedelta(days=1)
+    return to_utc(candidate)
