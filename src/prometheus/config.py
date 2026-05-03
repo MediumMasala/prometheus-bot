@@ -44,6 +44,22 @@ class Settings(BaseSettings):
             return v.replace("postgres://", "postgresql+asyncpg://", 1)
         return v
 
+    @field_validator("webhook_secret")
+    @classmethod
+    def _normalize_webhook_secret(cls, v: str) -> str:
+        # Telegram's secret_token allows only [A-Za-z0-9_-], 1-256 chars. Render's
+        # generateValue can include /, +, =. Strip to safe charset; fall back to
+        # SHA-256 hex if everything got stripped.
+        if not v:
+            return v
+        import hashlib
+        import re
+
+        cleaned = re.sub(r"[^A-Za-z0-9_-]", "", v)
+        if not cleaned:
+            cleaned = hashlib.sha256(v.encode()).hexdigest()
+        return cleaned[:256]
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def is_prod(self) -> bool:
